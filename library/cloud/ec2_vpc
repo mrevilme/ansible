@@ -534,6 +534,8 @@ def create_vpc(module, vpc_conn):
                 route_kwargs = {}
                 if route['dest'].startswith('vpc-'):
                     (connection,peer_info) = find_vpc_peer(module,vpc_conn, vpc.id, route['dest'])
+		    if connection == False or peer_info == False:
+			continue
                     route_kwargs['vpc_peering_connection_id'] = connection.id
                     route['dest'] = peer_info.cidr_block
                 elif route['gw'] == 'igw':
