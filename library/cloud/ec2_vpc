@@ -437,6 +437,9 @@ def create_vpc(module, vpc_conn):
     # First add new VPC Connections
     for peer in peers:
         peer_connection = None
+	if not isinstance(peer, dict):
+ 		continue;
+
         if peer.get('id') not in current_peer_connection_vpc_ids:
             try:
                 peer_connection = vpc_conn.create_vpc_peering_connection(vpc.id,peer.get('id'))
