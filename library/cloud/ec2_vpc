@@ -530,7 +530,7 @@ def create_vpc(module, vpc_conn):
             for route in rt['routes']:
                 route_kwargs = {}
                 if route['dest'].startswith('vpc-'):
-                    (connection,peer_info) = find_vpc_peer(module,vpc_conn, route['dest'])
+                    (connection,peer_info) = find_vpc_peer(module,vpc_conn, vpc.id, route['dest'])
                     route_kwargs['vpc_peering_connection_id'] = connection.id
                     route['dest'] = peer_info.cidr_block
                 elif route['gw'] == 'igw':
@@ -691,18 +691,25 @@ def clean_vpc_route(module,vpc_conn, route_table, vpc, peer_vpc, peer):
     else:
         return None
 
-def find_vpc_peer(module,vpc_conn, peer_id):
+def find_vpc_peer(module,vpc_conn, vpc_id, peer_id):
     connections = vpc_conn.get_all_vpc_peering_connections(filters=[('status-code','active')])
-    filtered_connections = filter(lambda conn: (conn.accepter_vpc_info.vpc_id == peer_id or conn.requester_vpc_info.vpc_id == peer_id), connections)
+    _ids = [peer_id, vpc_id]
+
+    _connections = []
+    for connection in connections:
+        _connections.append({ 'ids' : [connection.requester_vpc_info.vpc_id,connection.accepter_vpc_info.vpc_id], 'connection': connection })
+
+
+    filtered_connections = filter(lambda item: all(x in item['ids'] for x in _ids), _connections) #filter(lambda conn: (), connections)
     if len(filtered_connections) > 0:
         conn = filtered_connections[0]
         vpc_info = None
-        if conn.accepter_vpc_info.vpc_id == peer_id:
-            vpc_info = conn.accepter_vpc_info
+        if conn['connection'].accepter_vpc_info.vpc_id == peer_id:
+            vpc_info = conn['connection'].accepter_vpc_info
         else:
-            vpc_info = conn.requester_vpc_info
+            vpc_info = conn['connection'].requester_vpc_info
 
-        return (conn, vpc_info)
+        return (conn['connection'], vpc_info)
     else:
         return (False,False)
 
