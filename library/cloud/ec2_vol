@@ -202,7 +202,8 @@ def get_volume(module, ec2):
         module.fail_json(msg = "%s: %s" % (e.error_code, e.error_message))
 
     if not vols:
-        module.fail_json(msg="Could not find volume in zone (if specified): %s" % name or id)
+        #module.fail_json(msg="Could not find volume in zone (if specified): %s" % name or id)
+	return None
     if len(vols) > 1:
         module.fail_json(msg="Found more than one volume in zone (if specified) with name: %s" % name)
     return vols[0]
@@ -244,14 +245,17 @@ def create_volume(module, ec2, zone):
     else:
         volume_type = 'standard'
 
+    # If we have a name and and we can find that its already there try to attach / not attached
+    
+
     # If no instance supplied, try volume creation based on module parameters.
-    if name or id:
+    volume = get_volume(module, ec2)
+    if volume:
         if not instance:
             module.fail_json(msg = "If name or id is specified, instance must also be specified")
-        if iops or volume_size:
-            module.fail_json(msg = "Parameters are not compatible: [id or name] and [iops or volume_size]")
+        #if iops or volume_size:
+        #    module.fail_json(msg = "Parameters are not compatible: [id or name] and [iops or volume_size]")
 
-        volume = get_volume(module, ec2)
         if volume.attachment_state() is not None:
             adata = volume.attach_data
             if adata.instance_id != instance:
@@ -266,6 +270,8 @@ def create_volume(module, ec2, zone):
     else:
         try:
             volume = ec2.create_volume(volume_size, zone, snapshot, volume_type, iops)
+            if name != "":
+	        ec2.create_tags(volume.id, {"Name":name})
             while volume.status != 'available':
                 time.sleep(3)
                 volume.update()
@@ -389,8 +395,8 @@ def main():
     if not volume_size and not (id or name):
         module.fail_json(msg="You must specify an existing volume with id or name or a volume_size")
 
-    if volume_size and (id or name):
-        module.fail_json(msg="Cannot specify volume_size and either one of name or id")
+    #if volume_size and (id or name):
+    #    module.fail_json(msg="Cannot specify volume_size and either one of name or id")
 
 
     if state == 'absent':
